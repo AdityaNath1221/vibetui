@@ -1,6 +1,15 @@
-#songs {
+#main-container {
+    min-width: 100%;
+    min-height: 100%;
     margin: 1;
-} 
+    background: red;
+}
+
+#banner{
+    color: green;
+    text-align: center;
+    /* align:center middle; */
+}
 
 Button {
     margin: 1;
