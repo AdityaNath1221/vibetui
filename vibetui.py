@@ -1,10 +1,9 @@
 import subprocess
 from textual.app import App
 from textual import on
-from textual.containers import ScrollableContainer, Container
+from textual.containers import ScrollableContainer
 from textual.widgets import Header, Footer, Button, Input, Static
 from music_services import get_trending_songs, search_song
-# from player import play_song, stop_all_songs
 from mpv import MPV
 
 with open("/home/aditya/Projects/vibetui/banner.txt") as f:
@@ -16,25 +15,33 @@ class Player(Static):
 class VIBEtui(App):
     """Main landing"""
     def on_mount(self):
+        self.queue = []
         self.theme = "gruvbox"
         self.mpv = MPV()
+        self.set_interval(0.1, self.play_from_queue,pause=False)
 
     CSS_PATH = "style.css"
 
     BINDINGS = [
         ("h", "navigate_home", "Home"),
+        ("q", "navigate_queue", "Queue"),
         ("/", "search_song", "Search"),
         ("t", "get_trending", "Trending"),
-        ("h", "seek_backward", "Backward 5s"),
+        ("<", "seek_backward", "Backward 5s"),
         ("space", "toggle_pause", "Play/Pause"),
-        ("l", "seek_forward", "Forward 5s"),
+        (">", "seek_forward", "Forward 5s"),
         ("^q", "quit", "Quit"),
     ]
 
     @on(Button.Pressed)
     def play(self, event: Button.Pressed):
         song_url = f"https://www.youtube.com/watch?v={event.button.name}"
-        self.mpv.play(song_url)
+        self.queue.append({
+            "title": event.button.label.split("|")[0],
+            "duration": event.button.label.split("|")[1],
+            "videoId": event.button.name
+        })
+        # self.mpv.play(song_url)
 
     @on(Input.Submitted, "#search")
     def search(self, event: Input.Submitted):
@@ -45,11 +52,30 @@ class VIBEtui(App):
         for x in results:
             container.mount(Button(f"{x['title']} | {x['duration']}", name=x["videoId"]))
 
+    def play_from_queue(self):
+        if not self.queue:
+            return
+        if not self.mpv.is_playing():
+            song = self.queue.pop(0)
+            song_url = f"https://www.youtube.com/watch?v={song['videoId']}"
+            self.mpv.play(song_url)
 
     def action_navigate_home(self):
         container = self.query_one("#main_container")
         container.remove_children()
         container.mount(Static(content=banner, id="banner"))
+        # container.mount(Static(content=self.queue[0].get("videoId")))
+
+    def action_navigate_queue(self):
+        container = self.query_one("#main_container")
+        container.remove_children()
+        container.mount(Static(content=banner, id="banner"))
+        if not self.queue:
+            container.mount(Static(content="Your queue is empty!!!", id="queue_empty"))
+        else:
+            for song in self.queue:
+                container.mount(Button(song["title"]))
+        # container.mount(Static(content=self.queue[0].get("videoId")))
 
     def action_search_song(self):
         container = self.query_one("#main_container")
@@ -95,17 +121,5 @@ class VIBEtui(App):
             
 
 if __name__ == "__main__":
-    cmd = [
-        "mpv",
-        "--no-video",
-        "--idle=yes",
-        "--input-ipc-server=/tmp/mpvsocket",
-        "--input-terminal=no",
-        "--no-input-default-bindings",
-        "--really-quiet",
-        "--cache=no",
-    ]
-
-    subprocess.Popen(cmd)
 
     VIBEtui().run()

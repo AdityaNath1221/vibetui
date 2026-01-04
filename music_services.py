@@ -18,7 +18,7 @@ def get_trending_songs():
 
 def search_song(query):
 
-    results = ytmusic.search(query=query, filter="songs", limit=10)
+    results = ytmusic.search(query=query, filter="videos", limit=10)
 
     songs = []
 
