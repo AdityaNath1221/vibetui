@@ -4,22 +4,9 @@ import subprocess
 import time
 
 class MPV:
-    def __init__(self):
-        cmd = [
-            "mpv",
-            "--no-video",
-            "--idle=yes",
-            "--input-ipc-server=/tmp/mpvsocket",
-            "--input-terminal=no",
-            "--no-input-default-bindings",
-            "--really-quiet",
-            "--cache=no",
-        ]
-
-        subprocess.Popen(cmd)
-        time.sleep(0.3) 
+    def __init__(self, socket_url="/tmp/mpvsocket"):
         self.sock = socket.socket(socket.AF_UNIX)
-        self.sock.connect("/tmp/mpvsocket")
+        self.sock.connect(socket_url)
 
     # def cmd(self, *args):
     #     self.sock.send(

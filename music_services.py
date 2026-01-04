@@ -31,3 +31,7 @@ def search_song(query):
 
     return songs
 
+def get_suggestions(str):
+    results = ytmusic.get_search_suggestions(str)
+
+    return results
