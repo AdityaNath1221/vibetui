@@ -5,13 +5,35 @@
     background: red;
 }
 
-#banner{
+#logo{
     color: green;
     text-align: center;
+    margin-top: 1;
     /* align:center middle; */
 }
 
+#trending {
+    color: green;
+    text-align: center;
+    margin-top: 1;
+}
+
+#queue{
+    color: green;
+    text-align: center;
+    margin-top: 1;
+}
+
+#search{
+    color: green;
+    text-align: center;
+    margin-top: 1;
+}
+
 Button {
-    margin: 1;
+    margin-bottom: 1;
+    margin-left: 5;
+    margin-right: 5;
     min-width: 100%;
+    color: black;
 }

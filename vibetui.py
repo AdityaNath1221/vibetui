@@ -6,8 +6,14 @@ from textual.widgets import Header, Footer, Button, Input, Static
 from music_services import get_trending_songs, search_song
 from mpv import MPV
 
-with open("/home/aditya/Projects/vibetui/banner.txt") as f:
-    banner = f.read()
+with open("assets/logo.txt") as f:
+    logo = f.read()
+with open("assets/trending.txt") as f:
+    trending = f.read()
+with open("assets/queue.txt") as f:
+    queue = f.read()
+with open("assets/search.txt") as f:
+    search = f.read()
 
 class Player(Static):
     pass
@@ -19,6 +25,9 @@ class VIBEtui(App):
         self.theme = "gruvbox"
         self.mpv = MPV()
         self.set_interval(0.1, self.play_from_queue,pause=False)
+        self.current_view = "none"
+        self.current_song=[]
+        self.action_navigate_home()
 
     CSS_PATH = "style.css"
 
@@ -43,10 +52,10 @@ class VIBEtui(App):
         })
         # self.mpv.play(song_url)
 
-    @on(Input.Submitted, "#search")
+    @on(Input.Submitted, "#search_box")
     def search(self, event: Input.Submitted):
         results = search_song(event.input.value)
-        text_area = self.query("#search")
+        text_area = self.query("#search_box")
         text_area.remove()
         container = self.query_one("#main_container")
         for x in results:
@@ -56,42 +65,65 @@ class VIBEtui(App):
         if not self.queue:
             return
         if not self.mpv.is_playing():
-            song = self.queue.pop(0)
-            song_url = f"https://www.youtube.com/watch?v={song['videoId']}"
+            self.current_song = self.queue.pop(0)
+            song_url = f"https://www.youtube.com/watch?v={self.current_song['videoId']}"
             self.mpv.play(song_url)
 
     def action_navigate_home(self):
-        container = self.query_one("#main_container")
-        container.remove_children()
-        container.mount(Static(content=banner, id="banner"))
-        # container.mount(Static(content=self.queue[0].get("videoId")))
+        if self.current_view=="home":
+            return
+        else:
+            self.current_view="home"
+            container = self.query_one("#main_container")
+            container.remove_children()
+            container.mount(Static(content=logo, id="logo"))
+            # container.mount(Static(content=self.queue[0].get("videoId")))
 
     def action_navigate_queue(self):
-        container = self.query_one("#main_container")
-        container.remove_children()
-        container.mount(Static(content=banner, id="banner"))
-        if not self.queue:
-            container.mount(Static(content="Your queue is empty!!!", id="queue_empty"))
+        if self.current_view=="queue":
+            return
         else:
-            for song in self.queue:
-                container.mount(Button(song["title"]))
-        # container.mount(Static(content=self.queue[0].get("videoId")))
+            self.current_view = "queue"
+            container = self.query_one("#main_container")
+            container.remove_children()
+            container.mount(Static(content=queue, id="queue"))
+            if not self.current_song:
+                container.mount(Static(content="Itna sannata kyun hai bhai?", id="queue_empty"))
+            else:
+                container.mount(Static(content="Currently Playing:", id="current"))
+                container.mount(Button(self.current_song["title"]))
+                if not self.queue:
+                    return
+                else:
+                    container.mount(Static(content="Up Next", id="up_next"))
+                    for song in self.queue:
+                        container.mount(Button(song["title"]))
 
     def action_search_song(self):
-        container = self.query_one("#main_container")
-        container.remove_children()
-        input_area = Input(placeholder="Enter song name", type="text", id="search")
-        container.mount(input_area)
-        input_area.focus()
+        if self.current_view=="search":
+            return
+        else:
+            self.current_view="search"
+            container = self.query_one("#main_container")
+            container.remove_children()
+            container.mount(Static(content=search, id="search"))
+            input_area = Input(placeholder="Start typing...", type="text", id="search_box")
+            container.mount(input_area)
+            input_area.focus()
 
     def action_get_trending(self):
-        container = self.query_one("#main_container")
-        container.remove_children()
-        songs = get_trending_songs()
-        for song in songs:
-            container.mount(
-                Button(f'{song["title"]} | {song.get("duration","--:--")}', name=song["videoId"])
-            )
+        if self.current_view=="trending":
+            return
+        else:
+            self.current_view = "trending"
+            container = self.query_one("#main_container")
+            container.remove_children()
+            container.mount(Static(content=trending, id="trending"))
+            songs = get_trending_songs()
+            for song in songs:
+                container.mount(
+                    Button(f'{song["title"]} | {song.get("duration")}', name=song["videoId"], classes="songs")
+                )
 
     def action_toggle_pause(self):
         self.mpv.toggle_pause()
@@ -114,10 +146,9 @@ class VIBEtui(App):
 
     def compose(self):
         """Creating/rendering widgets"""
-        yield Header(show_clock=True)
+        # yield Header(show_clock=True)
         yield Footer()
-        with ScrollableContainer(id="main_container"):
-            yield Static(content=banner, id="banner")
+        yield ScrollableContainer(id="main_container")
             
 
 if __name__ == "__main__":
