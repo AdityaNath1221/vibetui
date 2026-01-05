@@ -99,8 +99,21 @@
 
 #suggestions {
     width: 100%;
+    padding-left: 2;
+    padding-right: 0;
+}
+
+#search_results {
+    width: 100%;
+    padding-left: 2;
+    padding-right: 0;
 }
 
 .hidden {
     display: none;
+}
+
+.container {
+    height: 100%;
+    width: 100%;
 }

@@ -21,22 +21,28 @@ with open("assets/player.txt") as f:
 
 class Music_Player(Static):
 
+    def on_mount(self):
+        if self.app.get_current_song()==False:
+            self.current_song = "Nothing Playing Right now"
+        else:
+            self.current_song = self.app.get_current_song()["title"]
+
     @on(Button.Pressed, "#current_song_name")
     def toggle_song(self):
         self.app.mpv.toggle_pause()
+        # current_song = self.app.get_current
 
     def compose(self):
         with Container(id="player_controller"):
-            yield Button("Kal Ho Naa Ho", id="current_song_name")
-            yield Button("<-", id="previous" ,classes="player_controls")
-            yield Button("->", id="next", classes="player_controls")
+            pass
+            
 
 class Home(Static):
     
     def compose(self):
         with Container(id="home_box"):
             yield Static(content=logo, classes="title", id="vibetui")
-            yield Music_Player()
+            # yield Music_Player()
 
 class Trending(Static):
 
@@ -46,8 +52,11 @@ class Trending(Static):
 
     @on(Button.Pressed, ".listed_songs")
     def play_song(self, event: Button.Pressed):                            # directly play song for now, add to queue later
-        song_url = f"https://www.youtube.com/watch?v={event.button.name}"
-        self.app.mpv.play(song_url)
+        self.app.queue.append({
+            "title": event.button.label.split("|")[0],
+            "duration": event.button.label.split("|")[1],
+            "videoId": event.button.name
+        })
 
     def compose(self):
         with Container(id="trending_box"):
@@ -58,63 +67,80 @@ class Trending(Static):
 
 class Search(Static):
 
-    def on_mount(self):
-        self.set_interval(1/2, self.get_search_suggestions, pause=False)
-
-    def get_search_suggestions(self):
-        input = self.query_one("#search_box")
+    @on(Input.Changed, '#search_box')
+    def get_search_suggestions(self, event: Input.Changed):
+        search_results = self.query_one("#search_results")
+        search_results.add_class("hidden")
         container = self.query_one("#suggestions")
         container.remove_children()
-        suggestions = get_suggestions(input.value)
+        container.remove_class("hidden")
+        suggestions = get_suggestions(event.input.value)
         if suggestions:
             for suggestion in suggestions:
-                container.mount(Button(suggestion, classes="listed_suggestions"))
+                container.mount(Button(suggestion,name=suggestion, classes="listed_suggestions"))
 
 
     @on(Input.Submitted, "#search_box")
     def search(self, event: Input.Submitted):
-        search_results_container = self.query_one("#search_results")
-        search_results_container.remove_class("hidden")
         suggestions = self.query_one("#suggestions")
         suggestions.add_class("hidden")
+        search_results_container = self.query_one("#search_results")
+        search_results_container.remove_children()
+        search_results_container.remove_class("hidden")
         results = search_song(event.input.value)
+        for x in results:
+            search_results_container.mount(Button(f"{x['title']} | {x['duration']}", name=x["videoId"], classes="listed_songs"))
+
+    @on(Button.Pressed, ".listed_suggestions")
+    def search_from_suggestion(self, event: Button.Pressed):
+        suggestion = self.query_one("#suggestions")
+        suggestion.add_class("hidden")
+        search_results_container = self.query_one("#search_results")
+        search_results_container.remove_children()
+        search_results_container.remove_class("hidden")
+        results = search_song(event.button.name)
         for x in results:
             search_results_container.mount(Button(f"{x['title']} | {x['duration']}", name=x["videoId"], classes="listed_songs"))
 
     @on(Button.Pressed, ".listed_songs")
     def play(self, event: Button.Pressed):
-        song_url = f"https://www.youtube.com/watch?v={event.button.name}"
-        # self.queue.append({
-        #     "title": event.button.label.split("|")[0],
-        #     "duration": event.button.label.split("|")[1],
-        #     "videoId": event.button.name
-        # })
-        self.app.mpv.play(song_url)
+        self.app.queue.append({
+            "title": event.button.label.split("|")[0],
+            "duration": event.button.label.split("|")[1],
+            "videoId": event.button.name
+        })
 
 
     def compose(self):
         with Container(id="search_box_container"):
             yield Static(content=search, id="search_title", classes="title")  
             yield Input(placeholder="Start typing...", type="text", id="search_box")
-            yield ScrollableContainer(id="suggestions")
-            yield ScrollableContainer(id="search_results")
+            yield ScrollableContainer(id="suggestions", classes="container")
+            yield ScrollableContainer(id="search_results", classes="container")
 
 
 class VIBEtui(App):
     """Main landing"""
-    def on_mount(self):
-        self.queue = []
+
+    def __init__(self):
+        super().__init__()
         self.theme = "gruvbox"
         self.mpv = MPV()
+
+    def on_mount(self):
+        self.queue = []
         self.set_interval(1/60, self.play_from_queue,pause=False)
         self.current_view = "none"
-        self.current_song=[]
+        self.current_song = []
+        self.current_song_title = ""
+        self.current_song_idx = -1
         self.action_navigate_home()
 
-    CSS_PATH = "style.tcss"
+    CSS_PATH = "style.css"
 
     BINDINGS = [
         ("h", "navigate_home", "Home"),
+        ("escape", "navigate_home"),
         ("q", "navigate_queue", "Queue"),
         ("/", "navigate_search", "Search"),
         ("t", "navigate_trending", "Trending"),
@@ -124,24 +150,39 @@ class VIBEtui(App):
         ("^q", "quit", "Quit"),
     ]
 
-    @on(Button.Pressed, ".songs")
-    def play(self, event: Button.Pressed):
-        song_url = f"https://www.youtube.com/watch?v={event.button.name}"
-        self.queue.append({
-            "title": event.button.label.split("|")[0],
-            "duration": event.button.label.split("|")[1],
-            "videoId": event.button.name
-        })
-        # self.mpv.play(song_url)
-
-    def play_from_queue(self):
+    def play_from_queue(self):          # Recursive function that checks if any songs in queue and plays it. Runs 60 times per sec
         if not self.queue:
-            self.current_song=[]
+            self.current_song_title = "Nothing Playing Right Now"
             return
         if not self.mpv.is_playing():
-            self.current_song = self.queue.pop(0)
-            song_url = f"https://www.youtube.com/watch?v={self.current_song['videoId']}"
-            self.mpv.play(song_url)
+            if self.current_song_idx+1==len(self.queue):
+                return                
+            self.current_song_idx+=1
+            self.current_song = self.queue[self.current_song_idx]
+            self.current_song_title = self.current_song["title"]
+            self.play_song()
+
+    def get_current_song(self):
+        if not self.current_song:
+            return False
+        return self.current_song
+        
+
+    def play_song(self):
+        self.current_song = self.queue[self.current_song_idx]
+        song_url = f'https://www.youtube.com/watch?v={self.current_song["videoId"]}'
+        self.mpv.play(song_url)
+
+    def play_next_song(self):           # increment current song index and then play it
+        if self.current_song_idx+1 != len(self.queue):
+            self.current_song_idx+=1
+            self.current_song = self.queue[self.current_song_idx]
+            
+
+    def play_previous_song(self):       # decrement current song index and then play it
+        if self.current_song_idx-1 != -1:
+            self.current_song_idx-=1
+            self.current_song = self.queue[self.current_song_idx]
 
     def action_navigate_home(self):
         if self.current_view=="home":
@@ -151,6 +192,7 @@ class VIBEtui(App):
             container = self.query_one("#main_container")
             container.remove_children()
             container.mount(Home())
+            container.mount(Button(self.current_song_title))
 
 
     def action_navigate_queue(self):
@@ -234,6 +276,6 @@ if __name__ == "__main__":
     ]
 
     subprocess.Popen(cmd)
-    time.sleep(0.001) 
+    time.sleep(0.5) 
 
     VIBEtui().run()
