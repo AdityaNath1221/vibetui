@@ -12,37 +12,10 @@ with open("assets/logo.txt") as f:
     logo = f.read()
 with open("assets/trending.txt") as f:
     trending = f.read()
-with open("assets/queue.txt") as f:
-    queue = f.read()
 with open("assets/search.txt") as f:
     search = f.read()
-with open("assets/player.txt") as f:
-    player = f.read()
-
-class Music_Player(Static):
-
-    def on_mount(self):
-        if self.app.get_current_song()==False:
-            self.current_song = "Nothing Playing Right now"
-        else:
-            self.current_song = self.app.get_current_song()["title"]
-
-    @on(Button.Pressed, "#current_song_name")
-    def toggle_song(self):
-        self.app.mpv.toggle_pause()
-        # current_song = self.app.get_current
-
-    def compose(self):
-        with Container(id="player_controller"):
-            pass
-            
-
-class Home(Static):
-    
-    def compose(self):
-        with Container(id="home_box"):
-            yield Static(content=logo, classes="title", id="vibetui")
-            # yield Music_Player()
+with open("assets/queue.txt") as f:
+    queue = f.read()
 
 class Trending(Static):
 
@@ -125,6 +98,7 @@ class VIBEtui(App):
     def __init__(self):
         super().__init__()
         self.theme = "gruvbox"
+        self.is_paused = False
         self.mpv = MPV()
 
     def on_mount(self):
@@ -132,7 +106,6 @@ class VIBEtui(App):
         self.set_interval(1/60, self.play_from_queue,pause=False)
         self.current_view = "none"
         self.current_song = []
-        self.current_song_title = ""
         self.current_song_idx = -1
         self.action_navigate_home()
 
@@ -152,14 +125,14 @@ class VIBEtui(App):
 
     def play_from_queue(self):          # Recursive function that checks if any songs in queue and plays it. Runs 60 times per sec
         if not self.queue:
-            self.current_song_title = "Nothing Playing Right Now"
+            return
+        if self.is_paused:
             return
         if not self.mpv.is_playing():
             if self.current_song_idx+1==len(self.queue):
                 return                
             self.current_song_idx+=1
             self.current_song = self.queue[self.current_song_idx]
-            self.current_song_title = self.current_song["title"]
             self.play_song()
 
     def get_current_song(self):
@@ -173,16 +146,28 @@ class VIBEtui(App):
         song_url = f'https://www.youtube.com/watch?v={self.current_song["videoId"]}'
         self.mpv.play(song_url)
 
+    @on(Button.Pressed, "#next")
     def play_next_song(self):           # increment current song index and then play it
         if self.current_song_idx+1 != len(self.queue):
             self.current_song_idx+=1
             self.current_song = self.queue[self.current_song_idx]
-            
+            self.play_song()
+        else:
+            return
 
+    @on(Button.Pressed, "#prev")
     def play_previous_song(self):       # decrement current song index and then play it
         if self.current_song_idx-1 != -1:
             self.current_song_idx-=1
             self.current_song = self.queue[self.current_song_idx]
+            self.play_song()
+        else:
+            self.play_song()
+
+    @on(Button.Pressed, "#current")
+    def toggle_song(self):
+        self.is_paused = not self.is_paused
+        self.mpv.toggle_pause()
 
     def action_navigate_home(self):
         if self.current_view=="home":
@@ -191,29 +176,39 @@ class VIBEtui(App):
             self.current_view="home"
             container = self.query_one("#main_container")
             container.remove_children()
-            container.mount(Home())
-            container.mount(Button(self.current_song_title))
-
+            container.mount(Static(content=logo, classes="title"))
 
     def action_navigate_queue(self):
         if self.current_view=="queue":
             return
         else:
-            self.current_view = "queue"
+            self.current_view="queue"
             container = self.query_one("#main_container")
             container.remove_children()
-            container.mount(Static(content=queue, id="queue"))
-            if not self.current_song:
-                container.mount(Static(content="Itna sannata kyun hai bhai?", id="queue_empty", classes="queue_dialog"))
+            container.mount(Static(content=queue, classes="title"))
+            if not self.queue:
+                container.mount(Static("Itna sannata kyun hai bhai??", id="silence"))
             else:
-                container.mount(Static(content="Currently Playing:", id="current"))
-                container.mount(Button(self.current_song["title"]))
-                if not self.queue:
-                    return
-                else:
-                    container.mount(Static(content="Up Next", id="up_next"))
-                    for song in self.queue:
-                        container.mount(Button(song["title"]))
+                container.mount(Static(content="Currently Playing:", id="currently_playing_text"))
+
+                currently_playing_container = Container(id="currently_playing_box")
+                container.mount(currently_playing_container)
+
+                currently_playing_container.mount(Button("<-", id="prev", classes="music_controls"))
+                currently_playing_container.mount(Button(self.current_song["title"], id="current", classes="music_controls"))
+                currently_playing_container.mount(Button("->", id="next", classes="music_controls"))
+
+                if len(self.queue)>1 and self.current_song_idx!=len(self.queue)-1:
+                    container.mount(Static(content="Up Next:", id="up_next_text"))
+
+                    up_next_container = ScrollableContainer(id="up_next_box")
+                    container.mount(up_next_container)
+
+                    for idx in range(self.current_song_idx+1, len(self.queue)):
+                        up_next_container.mount(Button(self.queue[idx]["title"], classes="up_next_songs"))
+
+
+ 
 
     def action_navigate_search(self):
         if self.current_view=="search":
@@ -236,6 +231,7 @@ class VIBEtui(App):
             container.mount(Trending())
 
     def action_toggle_pause(self):
+        self.is_paused = not self.is_paused
         self.mpv.toggle_pause()
 
     def action_seek_forward(self):
@@ -279,3 +275,18 @@ if __name__ == "__main__":
     time.sleep(0.5) 
 
     VIBEtui().run()
+
+
+
+
+        #    if not self.current_song:
+        #         container.mount(Static(content="Itna sannata kyun hai bhai?", id="queue_empty", classes="queue_dialog"))
+        #     else:
+        #         container.mount(Static(content="Currently Playing:", classes="queue_dialog"))
+        #         container.mount(Button(self.current_song["title"], id="current", classes="queue_current"))
+        #         if not self.queue:
+        #             return
+        #         else:
+        #             container.mount(Static(content="Up Next"))
+        #             for idx in range(self.current_song_idx+1, len(self.queue)):
+        #                 container.mount(Button(self.queue[idx]["title"]), classes="queue_songs")

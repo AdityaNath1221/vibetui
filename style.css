@@ -46,36 +46,6 @@
     margin-right: 5;
 }
 
-#player_controller {
-    layout: horizontal;
-    /* border-top: heavy rgb(187, 187, 12); */
-    width: 100%;
-    height: 7;
-    padding: 1;
-}
-
-.player_controls {
-    margin: 0 5;
-    width: 25;
-    color: orange;
-}
-
-#current_song_name {
-    width: 100%;
-    text-align: center;
-    text-style: bold;
-    /* color: rgb(187, 187, 12); */
-    color: orange;
-}
-
-#previous{
-    dock: left;
-}
-
-#next{
-    dock: right;
-}
-
 #home_box {
     /* border: round white; */
     padding-top: 2;
@@ -116,4 +86,66 @@
 .container {
     height: 100%;
     width: 100%;
+}
+
+.queue_songs {
+    width: 100%;
+    margin: 1 5;
+    text-align: center;
+
+}
+.queue_current {
+    width: 100%;
+    margin: 1 5;
+    text-align: center;
+}
+
+#currently_playing_box{
+    layout:horizontal;
+    width: 100%;
+}
+
+#silence {
+    margin-top: 5;
+    text-align: center;
+    text-style: bold;
+    color: rgb(211, 211, 20);
+}
+
+#currently_playing_text {
+    text-align: center;
+    text-style: bold;
+    color: rgb(211, 211, 20);
+    margin-bottom: 2;
+}
+
+.music_controls{
+    margin: 0 5;
+    text-style: bold;
+}
+
+#current{
+    width: 100%;
+    padding-left: 2;
+}
+
+#prev{
+    dock: left;
+}
+
+#next{
+    dock: right;
+}
+
+#up_next_text{
+    text-align: center;
+    text-style: bold;
+    color: rgb(211, 211, 20);
+    margin-bottom: 2;
+}
+
+.up_next_songs{
+    width: 100%;
+    margin: 1 5;
+    text-align: center;
 }
