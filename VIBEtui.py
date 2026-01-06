@@ -287,13 +287,9 @@ class VIBEtui(App):
 
         self.update_queue_page()
 
-    @on(Button.Pressed, "#next")
-    def next_song(self):
-        if self.current_song_idx + 1 < len(self.queue):
-            self.current_song_idx += 1
-            self.play_current()
-
-
+    # FIXED: Removed duplicate definition of this method
+    # Added manual_change flag to prevent on_song_finished callback
+    # from triggering during manual navigation between songs
     @on(Button.Pressed, "#next")
     def next_song(self):
         if self.current_song_idx + 1 < len(self.queue):
@@ -303,12 +299,9 @@ class VIBEtui(App):
             self.manual_change = False
 
 
-    @on(Button.Pressed, "#prev")
-    def prev_song(self):
-        if self.current_song_idx - 1 >= 0:
-            self.current_song_idx -= 1
-            self.play_current()
-
+    # FIXED: Removed duplicate definition of this method
+    # Added manual_change flag to prevent on_song_finished callback
+    # from triggering during manual navigation between songs
     @on(Button.Pressed, "#prev")
     def prev_song(self):
         if self.current_song_idx - 1 >= 0:

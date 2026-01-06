@@ -78,7 +78,11 @@ class MPVController:
     #             self.on_eof()
 
     def __init__(self):
+        # FIXED: Added ytdl=True to enable yt-dlp integration
+        # This is required for MPV to stream YouTube URLs via yt-dlp
+        # Without this, MPV cannot play YouTube videos
         self.mpv = MPV(
+            ytdl=True,
             input_ipc_server="/tmp/mpvsocket",
             idle=True,
         )

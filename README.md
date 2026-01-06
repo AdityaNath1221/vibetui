@@ -52,22 +52,55 @@ Each component has a **clear responsibility**, keeping the codebase easy to unde
 - `mpv` installed and available in **PATH**
 - Linux / macOS (Windows users can run via WSL or using virtual machine)
 
+### System Dependencies
+
+Before setting up the Python environment, install the required system packages:
+
+**On Ubuntu/Debian:**
+```bash
+sudo apt install python3-venv libmpv-dev mpv
+```
+
+**On Fedora/RHEL:**
+```bash
+sudo dnf install python3-virtualenv mpv-libs-devel mpv
+```
+
+**On Arch Linux:**
+```bash
+sudo pacman -S python-virtualenv mpv
+```
+
+**On macOS:**
+```bash
+brew install mpv
+```
+
 ### Setup
 
 ```bash
 git clone https://github.com/AdityaNath1221/vibetui.git
 cd vibetui
-python3 -m venv env
-source env/bin/activate
+
+# Create and activate virtual environment
+python3 -m venv venv
+source venv/bin/activate
+
+# Install Python dependencies
 pip install -r requirements.txt
+
+# Install yt-dlp (required for YouTube streaming)
+pip install yt-dlp
 ```
 
 ### Run
 
 ```bash
-source env/bin/activate
+source venv/bin/activate
 python3 VIBEtui.py
 ```
+
+**Note:** Make sure all system dependencies (`mpv`, `libmpv-dev`) and Python packages (`yt-dlp`) are installed before running.
 
 ---
 
