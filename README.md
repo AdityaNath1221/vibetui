@@ -22,6 +22,20 @@ Just vibes.
 
 ---
 
+## Platform Support
+
+**VIBEtui** currently supports:
+
+- Arch Linux
+- Ubuntu
+- Debian
+- Android (via Termux)
+
+Windows support is **not yet available** due to mpv IPC differences.
+It is planned for a future release.
+
+---
+
 ## 🧱 Project Structure
 
 ```text
@@ -50,16 +64,52 @@ Each component has a **clear responsibility**, keeping the codebase easy to unde
 
 - Python 3.10+ and `pip` package manager
 - `mpv` installed and available in **PATH**
-- Linux / macOS (Windows users can run via WSL or using virtual machine)
+- If using android, install `termux` from Google play store.
+
+### System Dependencies
+
+Before setting up the Python environment, install the required system packages:
+
+**On Ubuntu/Debian:**
+```bash
+sudo apt install git python3 python3-pip python3-venv libmpv-dev mpv yt-dlp
+```
+
+**On Fedora/RHEL:**
+```bash
+sudo dnf install git python3-virtualenv mpv-libs-devel mpv
+```
+
+**On Arch Linux:**
+```bash
+sudo pacman -S git python python-pip mpv yt-dlp 
+```
+
+**On macOS:**
+```bash
+brew install git mpv yt-dlp
+```
+
+**On Android:**
+```bash
+pkg install git python python-pip mpv yt-dlp
+```
+
+**NOTE:** I have not yet tested on macOS or fedora as of yet.
 
 ### Setup
 
 ```bash
 git clone https://github.com/AdityaNath1221/vibetui.git
 cd vibetui
+
+# Create and activate virtual environment
 python3 -m venv env
 source env/bin/activate
+
+# Install Python dependencies
 pip install -r requirements.txt
+
 ```
 
 ### Run
@@ -68,6 +118,10 @@ pip install -r requirements.txt
 source env/bin/activate
 python3 VIBEtui.py
 ```
+
+**Note:** Make sure all system dependencies (`mpv`, `libmpv-dev`) and Python packages are installed before running. In case of systems with `python` instead of `python3` just replace `python3` with `python`  
+
+**Special Note:** For easier access, creating a bash script for automating the above running process is recommended for a better User Experience
 
 ---
 
