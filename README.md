@@ -119,7 +119,7 @@ source env/bin/activate
 python3 VIBEtui.py
 ```
 
-**Note:** Make sure all system dependencies (`mpv`, `libmpv-dev`) and Python packages are installed before running. In case of systems with `python` instead of `python3` just replace `python3` with `python`  
+**Note:** Make sure all system dependencies (`mpv`, `libmpv-dev`) and Python packages are installed before running.
 
 **Special Note:** For easier access, creating a bash script for automating the above running process is recommended for a better User Experience
 
