@@ -35,12 +35,12 @@ class VIBEtui(App):
         super().__init__()
         self.theme = "gruvbox"
         self.current_view = "none"
-        self.mpv = MPVController()
+        self.mpv = MPVController(on_song_end=self.on_song_finished)
         self.manual_change = False
         self.current_song_idx = -1
         self.queue = []
         self.is_paused = False
-        self.mpv.on_end(self.on_song_finished)
+        
 
 
     def compose(self):
@@ -82,11 +82,19 @@ class VIBEtui(App):
     def on_mount(self):
         self.show_page("home_page") 
         self.set_focus(self.query_one("#home_page"))
+        # self.mpv.on_end(on_song_end=self.on_song_finished)
 
     def on_song_finished(self):
+        if self.manual_change:
+            return  # ignore fake "song ended" events
+        
         if self.current_song_idx + 1 < len(self.queue):
             self.current_song_idx += 1
-            self.play_current()
+            self.call_from_thread(self._play_next_from_end)
+
+    def _play_next_from_end(self):
+        self.play_current()
+
 
 
     def show_page(self, id: str):
@@ -118,14 +126,6 @@ class VIBEtui(App):
         container = self.query_one("#trending_songs")
         for song in trending_songs:
             container.mount(Button(f'{song["title"]} | {song["duration"]}', name=song["videoId"], classes="listed_songs"))
-
-    def on_song_finished(self):
-        if self.manual_change:
-            return  # ignore fake "song ended" events
-        else:
-            if self.current_song_idx + 1 < len(self.queue):
-                self.current_song_idx += 1
-                self.play_current()
 
 
 
@@ -165,7 +165,7 @@ class VIBEtui(App):
         if self.current_song_idx + 1 < len(self.queue):
             up_next_box.remove_class("hidden")
             up_next_text.remove_class("hidden")
-            for idx in range(self.current_song_idx + 1, len(self.queue)):
+            for idx in range(self.current_song_idx+1, len(self.queue)):
                 up_next_box.mount(Button(self.queue[idx]["title"], classes="up_next_songs"))
         else:
             up_next_box.add_class("hidden")
@@ -192,12 +192,6 @@ class VIBEtui(App):
 
     def action_seek_backward(self):
         self.mpv.seek(-5)
-
-    def stop_music(self):
-        try:
-            self.mpv.quit()
-        except Exception:
-            pass
 
     def action_quit(self):
         self.mpv.quit()
@@ -274,6 +268,9 @@ class VIBEtui(App):
             self.current_song_idx -= 1
             self.play_current()
             self.manual_change = False
+
+        else:
+            self.play_current()
     
 
 if __name__ == "__main__":
