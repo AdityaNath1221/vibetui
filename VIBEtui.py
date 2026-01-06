@@ -204,16 +204,6 @@ class VIBEtui(App):
         self.exit()
 
 
-    # def action_quit(self):
-    #     self.manual_change = True  # block callbacks
-    #     try:
-    #         self.mpv.shutdown()
-    #     except Exception:
-    #         pass
-
-    #     self.call_later(self.exit)
-
-
     # EVENT HANDLERS
 
     @on(Input.Changed, '#search_box')
@@ -272,6 +262,10 @@ class VIBEtui(App):
             self.current_song_idx += 1
             self.play_current()
             self.manual_change = False
+
+    @on(Button.Pressed, "#current")
+    def pause_song(self):
+        self.mpv.toggle_pause()
 
     @on(Button.Pressed, "#prev")
     def prev_song(self):
