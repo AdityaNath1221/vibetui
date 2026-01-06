@@ -38,3 +38,20 @@ class MPVController:
             self.mpv.terminate()
         except Exception:
             pass
+
+    def is_playing(self):
+        # True only when actively playing audio
+        return self.mpv.core_idle is False and self.mpv.pause is False
+
+    def time_pos(self):
+        try:
+            return self.mpv.time_pos
+        except Exception:
+            return None
+
+    def duration(self):
+        try:
+            return self.player.duration
+        except Exception:
+            return None
+

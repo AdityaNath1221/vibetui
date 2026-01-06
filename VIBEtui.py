@@ -80,6 +80,28 @@ class VIBEtui(App):
     def on_mount(self):
         self.show_page("home_page") 
         self.set_focus(self.query_one("#home_page"))
+        self.set_interval(0.2, self._watch_playback)
+
+    def _watch_playback(self):
+        if not self.mpv.is_playing():
+            return
+
+        pos = self.mpv.time_pos()
+        dur = self.mpv.duration()
+
+        if pos is None or dur is None:
+            return
+
+        if dur > 0 and pos >= dur - 0.2:
+            self.advance_queue()
+
+    def advance_queue(self):
+        if self.queue_index + 1 >= len(self.queue):
+            self.stop()
+            return
+
+        self.queue_index += 1
+        self.play_current()
 
 
     def show_page(self, id: str):
