@@ -1,13 +1,11 @@
 # IMPORTS
-import subprocess
-import time
 from textual.app import App
 from textual import on
 from textual.containers import ScrollableContainer, Container
-from textual.widgets import Header, Footer, Button, Input, Static
-from textual.events import Focus
+from textual.widgets import Footer, Button, Input, Static
 from music_services import get_trending_songs, search_song, get_suggestions
-from mpv import MPV
+from mpv_controller import MPVController
+
 
 # LOADING ASSETS
 
@@ -36,9 +34,9 @@ class VIBEtui(App):
     def __init__(self):
         super().__init__()
         self.theme = "gruvbox"
-        self.mpv = MPV()
         self.current_view = "none"
-        self.current_song = []
+        self.mpv = MPVController(on_song_end=self.on_song_finished)
+        self.manual_change = False
         self.current_song_idx = -1
         self.queue = []
         self.is_paused = False
@@ -82,7 +80,7 @@ class VIBEtui(App):
     def on_mount(self):
         self.show_page("home_page") 
         self.set_focus(self.query_one("#home_page"))
-        self.set_interval(1/60, self.play_from_queue,pause=False)
+
 
     def show_page(self, id: str):
         """Show one page, hide all others"""
@@ -114,7 +112,15 @@ class VIBEtui(App):
         for song in trending_songs:
             container.mount(Button(f'{song["title"]} | {song["duration"]}', name=song["videoId"], classes="listed_songs"))
 
-    # Add this method in VIBEtui
+    def on_song_finished(self):
+        if self.manual_change:
+            return  # ignore fake "song ended" events
+
+        if self.current_song_idx + 1 < len(self.queue):
+            self.current_song_idx += 1
+            self.play_current()
+
+
 
     def update_queue_page(self):
         """Updates currently playing and up next sections dynamically."""
@@ -141,10 +147,11 @@ class VIBEtui(App):
 
         # Update currently playing song title
         current_button = self.query_one("#current", Button)
-        if self.current_song:
-            current_button.label = self.current_song["title"]
+        if 0 <= self.current_song_idx < len(self.queue):
+            current_button.label = self.queue[self.current_song_idx]["title"]
         else:
             current_button.label = "Nothing Playing"
+
 
         # Update Up Next
         up_next_box.remove_children()
@@ -157,23 +164,15 @@ class VIBEtui(App):
             up_next_box.add_class("hidden")
             up_next_text.add_class("hidden")
 
-
-    def play_from_queue(self):          # Recursive function that checks if any songs in queue and plays it. Runs 60 times per sec
-        if not self.queue:
+    def play_current(self):
+        if not (0 <= self.current_song_idx < len(self.queue)):
             return
-        if self.is_paused:
-            return
-        if not self.mpv.is_playing():
-            if self.current_song_idx+1==len(self.queue):
-                return                
-            self.current_song_idx+=1
-            self.current_song = self.queue[self.current_song_idx]
-            self.play_song()
 
-    def play_song(self):
-        self.current_song = self.queue[self.current_song_idx]
-        song_url = f'https://www.youtube.com/watch?v={self.current_song["videoId"]}'
-        self.mpv.play(song_url)
+        song = self.queue[self.current_song_idx]
+        url = f"https://www.youtube.com/watch?v={song['videoId']}"
+
+        self.is_paused = False
+        self.mpv.play(url)
         self.update_queue_page()
 
 
@@ -182,10 +181,10 @@ class VIBEtui(App):
         self.mpv.toggle_pause()
 
     def action_seek_forward(self):
-        self.mpv.seek_forward()
+        self.mpv.seek(5)
 
     def action_seek_backward(self):
-        self.mpv.seek_backward()
+        self.mpv.seek(-5)
 
     def stop_music(self):
         try:
@@ -193,9 +192,19 @@ class VIBEtui(App):
         except Exception:
             pass
 
+    # def action_quit(self):
+    #     self.stop_music()
+    #     self.exit()
+
     def action_quit(self):
-        self.stop_music()
-        self.exit()
+        self.manual_change = True  # block callbacks
+        try:
+            self.mpv.shutdown()
+        except Exception:
+            pass
+
+        self.call_later(self.exit)
+
 
     # EVENT HANDLERS
 
@@ -235,41 +244,49 @@ class VIBEtui(App):
             search_results_container.mount(Button(f"{x['title']} | {x['duration']}", name=x["videoId"], classes="listed_songs"))
 
     @on(Button.Pressed, ".listed_songs")
-    def play(self, event: Button.Pressed):
+    def add_to_queue(self, event: Button.Pressed):
         self.queue.append({
             "title": event.button.label.split("|")[0],
             "duration": event.button.label.split("|")[1],
             "videoId": event.button.name
         })
+
+        if self.current_song_idx == -1:
+            self.current_song_idx = 0
+            self.play_current()
+
         self.update_queue_page()
 
+    # @on(Button.Pressed, "#next")
+    # def next_song(self):
+    #     if self.current_song_idx + 1 < len(self.queue):
+    #         self.current_song_idx += 1
+    #         self.play_current()
+
     @on(Button.Pressed, "#next")
-    def play_next_song(self):
+    def next_song(self):
         if self.current_song_idx + 1 < len(self.queue):
+            self.manual_change = True
             self.current_song_idx += 1
-            self.play_song()
+            self.play_current()
+            self.manual_change = False
+
+
+    # @on(Button.Pressed, "#prev")
+    # def prev_song(self):
+    #     if self.current_song_idx - 1 >= 0:
+    #         self.current_song_idx -= 1
+    #         self.play_current()
 
     @on(Button.Pressed, "#prev")
-    def play_previous_song(self):
+    def prev_song(self):
         if self.current_song_idx - 1 >= 0:
+            self.manual_change = True
             self.current_song_idx -= 1
-            self.play_song()
-
+            self.play_current()
+            self.manual_change = False
     
 
 if __name__ == "__main__":
-    # Launch mpv socket
-    cmd = [
-        "mpv",
-        "--no-video",
-        "--idle=yes",
-        "--input-ipc-server=/tmp/mpvsocket",
-        "--input-terminal=no",
-        "--no-input-default-bindings",
-        "--really-quiet",
-        "--cache=no",
-    ]
-    subprocess.Popen(cmd)
-    time.sleep(0.5)
-    # Run the app
+
     VIBEtui().run()
