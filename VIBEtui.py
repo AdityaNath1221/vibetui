@@ -35,11 +35,13 @@ class VIBEtui(App):
         super().__init__()
         self.theme = "gruvbox"
         self.current_view = "none"
-        self.mpv = MPVController(on_song_end=self.on_song_finished)
+        self.mpv = MPVController()
         self.manual_change = False
         self.current_song_idx = -1
         self.queue = []
         self.is_paused = False
+        self.mpv.on_end(self.on_song_finished)
+
 
     def compose(self):
         yield Footer()
@@ -80,28 +82,33 @@ class VIBEtui(App):
     def on_mount(self):
         self.show_page("home_page") 
         self.set_focus(self.query_one("#home_page"))
-        self.set_interval(0.2, self._watch_playback)
+        # self.set_interval(0.2, self._watch_playback)
 
-    def _watch_playback(self):
-        if not self.mpv.is_playing():
-            return
+    # def _watch_playback(self):
+    #     if not self.mpv.is_playing():
+    #         return
 
-        pos = self.mpv.time_pos()
-        dur = self.mpv.duration()
+    #     pos = self.mpv.time_pos()
+    #     dur = self.mpv.duration()
 
-        if pos is None or dur is None:
-            return
+    #     if pos is None or dur is None:
+    #         return
 
-        if dur > 0 and pos >= dur - 0.2:
-            self.advance_queue()
+    #     if dur > 0 and pos >= dur - 0.2:
+    #         self.advance_queue()
 
-    def advance_queue(self):
-        if self.queue_index + 1 >= len(self.queue):
-            self.stop()
-            return
+    # def advance_queue(self):
+    #     if self.queue_index + 1 >= len(self.queue):
+    #         self.stop()
+    #         return
 
-        self.queue_index += 1
-        self.play_current()
+    #     self.queue_index += 1
+    #     self.play_current()
+
+    def on_song_finished(self):
+        if self.current_song_idx + 1 < len(self.queue):
+            self.current_song_idx += 1
+            self.play_current()
 
 
     def show_page(self, id: str):
@@ -137,10 +144,10 @@ class VIBEtui(App):
     def on_song_finished(self):
         if self.manual_change:
             return  # ignore fake "song ended" events
-
-        if self.current_song_idx + 1 < len(self.queue):
-            self.current_song_idx += 1
-            self.play_current()
+        else:
+            if self.current_song_idx + 1 < len(self.queue):
+                self.current_song_idx += 1
+                self.play_current()
 
 
 
@@ -214,18 +221,19 @@ class VIBEtui(App):
         except Exception:
             pass
 
-    # def action_quit(self):
-    #     self.stop_music()
-    #     self.exit()
-
     def action_quit(self):
-        self.manual_change = True  # block callbacks
-        try:
-            self.mpv.shutdown()
-        except Exception:
-            pass
+        self.mpv.quit()
+        self.exit()
 
-        self.call_later(self.exit)
+
+    # def action_quit(self):
+    #     self.manual_change = True  # block callbacks
+    #     try:
+    #         self.mpv.shutdown()
+    #     except Exception:
+    #         pass
+
+    #     self.call_later(self.exit)
 
 
     # EVENT HANDLERS
@@ -279,11 +287,12 @@ class VIBEtui(App):
 
         self.update_queue_page()
 
-    # @on(Button.Pressed, "#next")
-    # def next_song(self):
-    #     if self.current_song_idx + 1 < len(self.queue):
-    #         self.current_song_idx += 1
-    #         self.play_current()
+    @on(Button.Pressed, "#next")
+    def next_song(self):
+        if self.current_song_idx + 1 < len(self.queue):
+            self.current_song_idx += 1
+            self.play_current()
+
 
     @on(Button.Pressed, "#next")
     def next_song(self):
@@ -294,11 +303,11 @@ class VIBEtui(App):
             self.manual_change = False
 
 
-    # @on(Button.Pressed, "#prev")
-    # def prev_song(self):
-    #     if self.current_song_idx - 1 >= 0:
-    #         self.current_song_idx -= 1
-    #         self.play_current()
+    @on(Button.Pressed, "#prev")
+    def prev_song(self):
+        if self.current_song_idx - 1 >= 0:
+            self.current_song_idx -= 1
+            self.play_current()
 
     @on(Button.Pressed, "#prev")
     def prev_song(self):
