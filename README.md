@@ -2,7 +2,7 @@
 
 > A terminal-based music streaming client built for people who actually live in the terminal.
 
-VIBEtui is a **Textual-powered TUI music player** that lets you search, queue, and stream music directly from your terminal using **mpv** as the playback engine.
+VIBEtui is a **Textual-powered TUI music player** that lets you search, queue, and stream music directly from your terminal using **mpv** as the playback engine. It streams audio only (no video) and is designed for keyboard-first usage.
 
 No browsers.  
 No bloated UI.  
@@ -14,7 +14,7 @@ Just vibes.
 
 - 🔍 Search music directly from YouTube — no account, no official API required  
 - 🎶 Play audio directly via `mpv`
-- 📜 Queue management (play, pause, next)
+- 📜 Queue management (add, play, pause, next/previous)
 - 🧭 Keyboard-driven navigation
 - 🖥️ Clean, minimal TUI built with [Textual](https://textual.textualize.io/)
 - 🎨 Custom styling with CSS
