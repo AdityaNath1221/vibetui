@@ -36,7 +36,6 @@ vibetui/
 ├── VIBEtui.py          # Main TUI application
 ├── style.css           # Textual UI styling
 ├── requirements.txt    # pip requirements
-├── vibetui.sh          # Shell script to run the application with just one command
 ├── README.md
 ├── LICENSE
 └── .gitignore
@@ -58,16 +57,16 @@ Each component has a **clear responsibility**, keeping the codebase easy to unde
 ```bash
 git clone https://github.com/AdityaNath1221/vibetui.git
 cd vibetui
-chmod +x ./vibetui.sh
+python3 -m venv env
+source env/bin/activate
+pip install -r requirements.txt
 ```
-
-> The shell script handles virtual environment setup and dependency installation.
-
 
 ### Run
 
 ```bash
-./vibetui.sh
+source env/bin/activate
+python3 VIBEtui.py
 ```
 
 ---
