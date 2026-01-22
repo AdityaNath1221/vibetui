@@ -19,9 +19,11 @@ def get_trending_songs():
 
     Returns:
         List[dict]: Each dict contains:
-            - title (str)
-            - videoId (str)
-            - duration (str)
+            - category
+            - title
+            - videoId
+            - duration
+            - artists
     """
 
     # Search YouTube Music using a trending-related query
@@ -29,18 +31,23 @@ def get_trending_songs():
     results = ytmusic.search(
         "India Trending Songs",
         filter="songs",
-        limit=20
     )
 
     songs = []
 
     # Extract only the fields we actually need
-    for r in results:
+    for x in results:
+        artist_names = ", ".join(
+            artist["name"] for artist in x.get("artists", [])
+        )
+
         songs.append({
-            "title": r["title"],
-            "videoId": r["videoId"],
-            "duration": r["duration"]
-        })
+            "category": x["category"],
+            "title": x["title"],
+            "videoId": x["videoId"],
+            "duration": x["duration"] if x["duration"] else "",
+            "artists": artist_names,
+            })
 
     return songs
 
@@ -57,28 +64,35 @@ def search_song(query):
 
     Returns:
         List[dict]: Search results with:
+            - category
             - title
             - videoId
             - duration
+            - artists
     """
 
     # filter="videos" is used instead of "songs"
-    # because video results are more reliable for playback via mpv
+    # because some songs are only available as videos and not labelled as songs
     results = ytmusic.search(
         query=query,
         filter="videos",
-        limit=10
     )
 
     songs = []
 
     # Normalize API response into a clean structure
-    for r in results:
+    for x in results:
+        artist_names = ", ".join(
+            artist["name"] for artist in x.get("artists", [])
+        )
+
         songs.append({
-            "title": r["title"],
-            "videoId": r["videoId"],
-            "duration": r["duration"]
-        })
+            "category": x["category"],
+            "title": x["title"],
+            "videoId": x["videoId"],
+            "duration": x["duration"] if x["duration"] else "",
+            "artists": artist_names,
+            })
 
     return songs
 

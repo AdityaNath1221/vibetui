@@ -14,6 +14,8 @@
 from textual.app import App
 from textual import on
 
+from textual.screen import Screen
+
 # Containers for layout
 from textual.containers import ScrollableContainer, Container
 
@@ -23,6 +25,7 @@ from textual.widgets import Footer, Button, Input, Static
 # Custom modules for music handling
 from music_services import get_trending_songs, search_song, get_suggestions
 from mpv_controller import MPVController
+from playlists.playlist_manager import PlaylistManager
 
 
 # =========================
@@ -42,6 +45,119 @@ with open("assets/search.txt") as f:
 with open("assets/queue.txt") as f:
     queue = f.read()
 
+with open("assets/playlists.txt") as f:
+    playlists = f.read()
+
+# Defining a custom song button to hold the metadata of songs.
+
+class Song(Button):
+    def __init__(self, song, **kwargs):
+        super().__init__(**kwargs)
+        self.song = song
+
+class CreatePlaylistScreen(Screen):
+
+    def on_mount(self):
+        self.playlist_name: str | None = None
+        self.songs: list[dict] = []
+
+    def compose(self):
+        yield Static("Create Playlist", classes="title")
+        yield Input(placeholder="Playlist name", id="name")
+        yield Input(placeholder="Search songs...", id="search")
+        yield ScrollableContainer(id="results")
+        yield Button("Save Playlist", id="save")
+        yield Button("Cancel", id="cancel")
+
+    @on(Input.Submitted, "#name")
+    def set_name(self, event: Input.Submitted):
+        self.playlist_name = event.value.strip()
+
+    @on(Input.Changed, "#search")
+    def search(self, event: Input.Changed):
+        query = event.value.strip()
+
+        if not query:
+            return
+        
+        results = search_song(query)
+        container = self.query_one("#results")
+        container.remove_children()
+
+        for song in results:
+            container.mount(
+                Song(
+                    label=f"{song['title']}\n{song['artists']}",
+                    song=song,
+                    classes="listed_songs"
+                )
+            )
+    
+    @on(Button.Pressed, ".listed_songs")
+    def add_song(self, event: Song.Pressed):
+        song_button: Song = event.button
+        self.songs.append(song_button.song)
+
+    @on(Button.Pressed, "#save")
+    def save(self):
+        if not self.playlist_name:
+            return
+
+        pm = self.app.playlistManager
+        pm.create(self.playlist_name)
+
+        for song in self.songs:
+            pm.add_song(self.playlist_name, song)
+
+        pm.save()
+        self.app.pop_screen()
+
+    @on(Button.Pressed, "#cancel")
+    def cancel(self):
+        self.app.pop_screen()
+
+class LoadPlaylistScreen(Screen):
+
+    def compose(self):
+        yield Static("Load Playlist", classes="title")
+        yield ScrollableContainer(id="playlists")
+        yield Button("Back", id="back")
+
+    def on_mount(self):
+        container = self.query_one("#playlists")
+        for name in self.app.playlistManager.names():
+            container.mount(Button(name, name=name))
+
+    @on(Button.Pressed)
+    def load(self, event: Button.Pressed):
+        songs = self.app.playlistManager.get(event.button.name)
+        self.app.queue.extend(songs)
+
+        if self.app.current_song_idx == -1 and self.app.queue:
+            self.app.current_song_idx = 0
+            self.app.play_current()
+
+        self.app.pop_screen()
+
+class PlaylistScreen(Screen):
+
+    def compose(self):
+        yield Static(content=playlists, classes="title")
+        yield Button("Create Playlist", id="create")
+        yield Button("Load Playlist", id="load")
+        yield Button("Back", id="back")
+
+    @on(Button.Pressed, "#create")
+    def create(self):
+        self.app.push_screen(CreatePlaylistScreen())
+
+    @on(Button.Pressed, "#load")
+    def load(self):
+        self.app.push_screen(LoadPlaylistScreen())
+
+    @on(Button.Pressed, "#back")
+    def go_back(self):
+        self.app.pop_screen()
 
 # =========================
 # MAIN APP CLASS
@@ -57,6 +173,7 @@ class VIBEtui(App):
         ("h", "navigate_home", "Home"),
         ("escape", "navigate_home"),
         ("q", "navigate_queue", "Queue"),
+        ("p", "navigate_playlists", "Playlists"),
         ("/", "navigate_search", "Search"),
         ("t", "navigate_trending", "Trending"),
         ("<", "seek_backward", "Backward 5s"),
@@ -87,6 +204,8 @@ class VIBEtui(App):
         # Playback state
         self.is_paused = False
 
+        self.playlistManager = PlaylistManager()
+
 
     # =========================
     # UI LAYOUT
@@ -95,47 +214,45 @@ class VIBEtui(App):
         # Footer shows keybindings
         yield Footer()
 
-        with Container(id="main_container"):
+        # -------- HOME PAGE --------
+        with Container(id="home_page"):
+            yield Static(content=logo, classes="title")
+            # Dummy button used only for focus handling
+            yield Button("dummy_home", classes="hidden")
 
-            # -------- HOME PAGE --------
-            with Container(id="home_page"):
-                yield Static(content=logo, classes="title")
-                # Dummy button used only for focus handling
-                yield Button("dummy_home", classes="hidden")
+        # -------- SEARCH PAGE --------
+        with Container(id="search_page", classes="hidden"):
+            yield Static(content=search, classes="title")
+            yield Input(placeholder="Start typing...", type="text", id="search_box")
+            yield ScrollableContainer(id="suggestions", classes="container hidden")
+            yield ScrollableContainer(id="search_results", classes="container")
+            yield Button("dummy_search", classes="hidden")
 
-            # -------- SEARCH PAGE --------
-            with Container(id="search_page", classes="hidden"):
-                yield Static(content=search, classes="title")
-                yield Input(placeholder="Start typing...", type="text", id="search_box")
-                yield ScrollableContainer(id="suggestions", classes="container hidden")
-                yield ScrollableContainer(id="search_results", classes="container")
-                yield Button("dummy_search", classes="hidden")
+        # -------- QUEUE PAGE --------
+        with Container(id="queue_page", classes="hidden"):
+            yield Static(content=queue, classes="title")
 
-            # -------- QUEUE PAGE --------
-            with Container(id="queue_page", classes="hidden"):
-                yield Static(content=queue, classes="title")
+            # Shown when queue is empty
+            yield Static("Itna sannata kyun hai bhai??", id="silence", classes="dialog")
 
-                # Shown when queue is empty
-                yield Static("Itna sannata kyun hai bhai??", id="silence", classes="dialog")
+            yield Static(content="Currently Playing:", id="currently_playing_text", classes="dialog")
 
-                yield Static(content="Currently Playing:", id="currently_playing_text", classes="dialog")
+            # Music control buttons
+            with Container(id="currently_playing_box", classes="hidden"):
+                yield Button("<-", id="prev", classes="music_controls")
+                yield Button("", id="current", classes="music_controls")
+                yield Button("->", id="next", classes="music_controls")
 
-                # Music control buttons
-                with Container(id="currently_playing_box", classes="hidden"):
-                    yield Button("<-", id="prev", classes="music_controls")
-                    yield Button("", id="current", classes="music_controls")
-                    yield Button("->", id="next", classes="music_controls")
+            yield Static(content="Up Next:", id="up_next_text", classes="dialog")
+            yield ScrollableContainer(id="up_next_box", classes="hidden")
 
-                yield Static(content="Up Next:", id="up_next_text", classes="dialog")
-                yield ScrollableContainer(id="up_next_box", classes="hidden")
+            yield Button("dummy_queue", classes="hidden")
 
-                yield Button("dummy_queue", classes="hidden")
-
-            # -------- TRENDING PAGE --------
-            with Container(id="trending_page", classes="hidden"):
-                yield Static(content=trending, classes="title")
-                yield ScrollableContainer(id="trending_songs")
-                yield Button("dummy_trending", classes="hidden")
+        # -------- TRENDING PAGE --------
+        with Container(id="trending_page", classes="hidden"):
+            yield Static(content=trending, classes="title")
+            yield ScrollableContainer(id="trending_songs")
+            yield Button("dummy_trending", classes="hidden")
 
 
     # =========================
@@ -143,6 +260,7 @@ class VIBEtui(App):
     # =========================
     def on_mount(self):
         # Start on home page
+        self.install_screen(PlaylistScreen(), name="playlists")
         self.show_page("home_page")
         self.set_focus(self.query_one("#home_page"))
 
@@ -207,12 +325,11 @@ class VIBEtui(App):
 
         for song in trending_songs:
             container.mount(
-                Button(
-                    f'{song["title"]} | {song["duration"]}',
-                    name=song["videoId"],
-                    classes="listed_songs"
-                )
+                Song(label=f'{song["title"]} \n {song["artists"]} \n {song["duration"]}',song=song, classes="listed_songs")
             )
+
+    def action_navigate_playlists(self):
+        self.push_screen("playlists")
 
 
     # =========================
@@ -245,7 +362,7 @@ class VIBEtui(App):
         # Update current song title
         current_button = self.query_one("#current", Button)
         if 0 <= self.current_song_idx < len(self.queue):
-            current_button.label = self.queue[self.current_song_idx]["title"]
+            current_button.label = f'{self.queue[self.current_song_idx]["title"]}\n{self.queue[self.current_song_idx]["artists"]}'
         else:
             current_button.label = "Nothing Playing"
 
@@ -257,7 +374,7 @@ class VIBEtui(App):
 
             for idx in range(self.current_song_idx + 1, len(self.queue)):
                 up_next_box.mount(
-                    Button(self.queue[idx]["title"], classes="up_next_songs")
+                    Button(f'{self.queue[idx]["title"]}\n{self.queue[idx]["artists"]}', classes="up_next_songs")
                 )
         else:
             up_next_box.add_class("hidden")
@@ -334,11 +451,11 @@ class VIBEtui(App):
         self.set_focus(search_results_container)
 
         results = search_song(event.input.value)
-        for x in results:
+        for song in results:
             search_results_container.mount(
-                Button(
-                    f"{x['title']} | {x['duration']}",
-                    name=x["videoId"],
+                Song(
+                    label = f"{song['title']} \n {song['artists']} \n {song['duration']}",
+                    song=song,
                     classes="listed_songs"
                 )
             )
@@ -356,25 +473,22 @@ class VIBEtui(App):
         search_results_container.remove_class("hidden")
 
         results = search_song(event.button.name)
-        for x in results:
+        for song in results:
             search_results_container.mount(
-                Button(
-                    f"{x['title']} | {x['duration']}",
-                    name=x["videoId"],
+                Song(
+                    label = f"{song['title']} \n {song['artists']} \n {song['duration']}",
+                    song=song,
                     classes="listed_songs"
                 )
             )
 
     @on(Button.Pressed, ".listed_songs")
-    def add_to_queue(self, event: Button.Pressed):
+    def add_to_queue(self, event: Song.Pressed):
         """
         Add selected song to queue.
         """
-        self.queue.append({
-            "title": event.button.label.split("|")[0],
-            "duration": event.button.label.split("|")[1],
-            "videoId": event.button.name
-        })
+        song_button: Song = event.button
+        self.queue.append(song_button.song)
 
         # Auto-play if queue was empty
         if self.current_song_idx == -1:

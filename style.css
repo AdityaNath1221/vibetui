@@ -55,6 +55,10 @@
     margin-bottom:2;
 }
 
+#trending_songs {
+    width: 100%;
+}
+
 .listed_songs {
     width: 100%;
     margin: 1 5;
